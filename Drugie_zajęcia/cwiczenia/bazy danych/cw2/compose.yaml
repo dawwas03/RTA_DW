@@ -1,0 +1,55 @@
+# --------------------------------------------------------------
+# docker-compose.yml – PostgreSQL + pgAdmin (ready‑to‑run)
+# --------------------------------------------------------------
+
+services:
+  # ----------------------------------------------------------
+  # PostgreSQL database
+  # ----------------------------------------------------------
+  db:
+    image: postgres:16-alpine          # lightweight, up‑to‑date image
+    container_name: pg_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: postgres
+    volumes:
+      - pg_data:/var/lib/postgresql/data   # persistent DB files
+    ports:
+      - "5432:5432"                         # host ↔ container (optional)
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # pgAdmin UI
+  # ----------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: pg_admin
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      # Optional: hide the “Server Mode” banner in the UI
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "8080:80"                           # http://localhost:8080 → pgAdmin UI
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    # Small delay so PostgreSQL has time to become ready before pgAdmin starts
+    entrypoint: >
+      sh -c "sleep 5 && /entrypoint.sh"
+
+# --------------------------------------------------------------
+# Named volumes – they survive container recreation
+# --------------------------------------------------------------
+volumes:
+  pg_data:          # PostgreSQL data files
+  pgadmin_data:    # pgAdmin configuration & saved server definitions
